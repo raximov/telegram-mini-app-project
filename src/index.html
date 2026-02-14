@@ -7,6 +7,25 @@
     <link rel="icon" type="image/svg+xml" href="./logo.svg" />
     <title>Telegram School Mini App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      (function () {
+        window.process = window.process || {};
+        window.process.env = window.process.env || {};
+
+        try {
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", "/runtime-config.json", false);
+          xhr.send(null);
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            var config = JSON.parse(xhr.responseText || "{}");
+            Object.assign(window.process.env, config);
+          }
+        } catch (_error) {
+          // Keep defaults from compiled frontend if runtime config fetch fails.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

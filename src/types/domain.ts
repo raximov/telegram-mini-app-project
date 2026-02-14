@@ -139,7 +139,7 @@ export interface TeacherResultRow {
   maxScore: number;
   percentage: number;
   passed: boolean;
-  submittedAt: string;
+  submittedAt: string | null;
 }
 
 export interface TeacherResultsSummary {
@@ -149,6 +149,31 @@ export interface TeacherResultsSummary {
   averageScore: number;
   passRate: number;
   rows: TeacherResultRow[];
+}
+
+export interface TeacherAttemptQuestionDetail {
+  questionId: number;
+  prompt: string;
+  questionType: QuestionType;
+  score: number;
+  maxScore: number;
+  writtenAnswer: string;
+  selectedAnswers: QuestionOption[];
+  correctAnswers: QuestionOption[];
+}
+
+export interface TeacherAttemptDetail {
+  attemptId: number;
+  testId: number;
+  testTitle: string;
+  studentId: number;
+  studentName: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  startedAt: string;
+  completedAt: string | null;
+  questions: TeacherAttemptQuestionDetail[];
 }
 
 export interface Course {

@@ -65,24 +65,40 @@ export const TeacherResultsPage = () => {
                 <th>Percent</th>
                 <th>Status</th>
                 <th>Submitted</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((row) => (
-                <tr key={row.attemptId}>
-                  <td>{row.studentName}</td>
-                  <td>
-                    {row.score}/{row.maxScore}
-                  </td>
-                  <td>{row.percentage.toFixed(1)}%</td>
-                  <td>
-                    <span className={`badge ${row.passed ? "success" : "error"}`}>
-                      {row.passed ? "Passed" : "Failed"}
-                    </span>
-                  </td>
-                  <td>{new Date(row.submittedAt).toLocaleString()}</td>
+              {data.rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>No submissions yet.</td>
                 </tr>
-              ))}
+              ) : (
+                data.rows.map((row) => (
+                  <tr key={row.attemptId}>
+                    <td>{row.studentName}</td>
+                    <td>
+                      {row.score}/{row.maxScore}
+                    </td>
+                    <td>{row.percentage.toFixed(1)}%</td>
+                    <td>
+                      <span className={`badge ${row.passed ? "success" : "error"}`}>
+                        {row.passed ? "Passed" : "Failed"}
+                      </span>
+                    </td>
+                    <td>{row.submittedAt ? new Date(row.submittedAt).toLocaleString() : "In progress"}</td>
+                    <td>
+                      <button
+                        className="btn btn-ghost"
+                        type="button"
+                        onClick={() => navigate(`/teacher/results/${parsedTestId}/attempt/${row.attemptId}`)}
+                      >
+                        Details
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

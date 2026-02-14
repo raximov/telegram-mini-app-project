@@ -9,8 +9,20 @@ import { savePersistedAuth, savePersistedTheme, savePersistedUser } from "@/stor
 
 const rtkQueryErrorMiddleware: Middleware = (storeApi) => (next) => (action) => {
   if (isRejectedWithValue(action)) {
-    const payload = action.payload as { data?: { detail?: string }; status?: number };
-    const detail = payload?.data?.detail ?? "Request failed.";
+    const payload = action.payload as {
+      data?: { detail?: string; error?: string };
+      status?: number | string;
+      error?: string;
+    };
+    const detail =
+      payload?.data?.detail ??
+      payload?.data?.error ??
+      payload?.error ??
+      (payload?.status === "FETCH_ERROR"
+        ? "Network error: API endpoint is unreachable."
+        : payload?.status === "PARSING_ERROR"
+          ? "Response parsing failed from API."
+          : "Request failed.");
 
     if (payload?.status === 401) {
       storeApi.dispatch(clearSession());

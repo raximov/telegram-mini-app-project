@@ -1,5 +1,6 @@
 import type { FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import {
+  getTeacherAttemptDetails,
   createTeacherQuestion,
   createTeacherTest,
   deleteTeacherQuestion,
@@ -184,6 +185,11 @@ export const runMockRequest = async (
     const teacherResultMatch = isMatch(request.url, /^\/testapp\/teacher\/test\/(\d+)\/results\/?$/);
     if (teacherResultMatch && request.method === "GET") {
       return { data: getTeacherResults(authToken, Number(teacherResultMatch[1])) };
+    }
+
+    const teacherAttemptDetailMatch = isMatch(request.url, /^\/testapp\/teacher\/attempt\/(\d+)\/details\/?$/);
+    if (teacherAttemptDetailMatch && request.method === "GET") {
+      return { data: getTeacherAttemptDetails(authToken, Number(teacherAttemptDetailMatch[1])) };
     }
 
     if (request.url === "/school/courses/" && request.method === "GET") {

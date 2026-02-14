@@ -1,5 +1,4 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { AuthSession } from "@/types/domain";
 import { loadPersistedAuth } from "@/store/persistence";
 
 export interface AuthState {
@@ -22,7 +21,7 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setSession: (state, action: PayloadAction<AuthSession>) => {
+    setSession: (state, action: PayloadAction<{ token: string; expiresAt: string }>) => {
       state.token = action.payload.token;
       state.expiresAt = action.payload.expiresAt;
       state.error = null;

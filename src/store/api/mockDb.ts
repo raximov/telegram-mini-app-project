@@ -12,6 +12,7 @@ import type {
   StudentTestSummary,
   TeacherQuestion,
   TeacherQuestionInput,
+  TeacherAttemptDetail,
   TeacherResultsSummary,
   TeacherTest,
   TestStatus,
@@ -786,6 +787,68 @@ export const getTeacherResults = (token: string | null, testId: number): Teacher
     averageScore: totalAttempts > 0 ? totalScore / totalAttempts : 0,
     passRate: totalAttempts > 0 ? (passedCount / totalAttempts) * 100 : 0,
     rows,
+  };
+};
+
+export const getTeacherAttemptDetails = (token: string | null, attemptId: number): TeacherAttemptDetail => {
+  const session = resolveSession(token);
+  if (!session || session.role !== "teacher") {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const attempt = attempts.find((item) => item.id === attemptId);
+  if (!attempt) {
+    throw new Error("NOT_FOUND");
+  }
+
+  const test = tests.find((item) => item.id === attempt.testId);
+  if (!test) {
+    throw new Error("NOT_FOUND");
+  }
+
+  const student = getUserById(attempt.studentId);
+  const answersByQuestionId = new Map(attempt.answers.map((answer) => [answer.questionId, answer]));
+
+  return {
+    attemptId: attempt.id,
+    testId: test.id,
+    testTitle: test.title,
+    studentId: attempt.studentId,
+    studentName: student ? `${student.firstName} ${student.lastName}` : "Unknown Student",
+    score: attempt.result?.score ?? 0,
+    maxScore: attempt.result?.maxScore ?? test.questions.reduce((sum, question) => sum + question.points, 0),
+    percentage: attempt.result?.percentage ?? 0,
+    startedAt: attempt.startedAt,
+    completedAt: attempt.submittedAt,
+    questions: test.questions.map((question) => {
+      const answer = answersByQuestionId.get(question.id);
+      const selectedOptionIds = answer?.selectedOptionIds ?? [];
+      const selectedAnswers = question.options.filter((option) => selectedOptionIds.includes(option.id));
+      const correctAnswers =
+        question.type === "single" || question.type === "multiple"
+          ? question.options.filter((option) => question.correctOptionIds.includes(option.id))
+          : [];
+      const writtenAnswer =
+        question.type === "numeric"
+          ? typeof answer?.numericAnswer === "number"
+            ? String(answer.numericAnswer)
+            : ""
+          : answer?.textAnswer ?? "";
+
+      const scoredMark =
+        attempt.result?.breakdown.find((row) => row.questionId === question.id)?.pointsEarned ?? 0;
+
+      return {
+        questionId: question.id,
+        prompt: question.prompt,
+        questionType: question.type,
+        score: scoredMark,
+        maxScore: question.points,
+        writtenAnswer,
+        selectedAnswers,
+        correctAnswers,
+      };
+    }),
   };
 };
 

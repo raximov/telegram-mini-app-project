@@ -57,6 +57,7 @@ export const TeacherBuilderPage = () => {
       if (draft.id) {
         await updateQuestion({
           questionId: draft.id,
+          testId: targetId,
           question: toQuestionInput(draft),
         }).unwrap();
       } else {

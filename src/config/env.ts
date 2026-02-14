@@ -14,8 +14,8 @@ const readNumber = (value: string, fallback: number): number => {
 };
 
 export const appEnv = {
-  apiBaseUrl: readPublicEnv("BUN_PUBLIC_API_BASE_URL", "http://127.0.0.1:8000"),
-  useMockData: readBoolean(readPublicEnv("BUN_PUBLIC_USE_MOCK_DATA", "true")),
+  apiBaseUrl: readPublicEnv("BUN_PUBLIC_API_BASE_URL", "http://localhost:8000"),
+  useMockData: readBoolean(readPublicEnv("BUN_PUBLIC_USE_MOCK_DATA", "false")),
   requestTimeoutMs: readNumber(readPublicEnv("BUN_PUBLIC_REQUEST_TIMEOUT_MS", "15000"), 15000),
   requestLatencyMs: readNumber(readPublicEnv("BUN_PUBLIC_MOCK_LATENCY_MS", "220"), 220),
 };

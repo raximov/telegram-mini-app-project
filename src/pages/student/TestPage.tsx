@@ -119,6 +119,25 @@ export const StudentTestPage = () => {
     return <LoadingState label="Starting attempt..." />;
   }
 
+  if (totalQuestions === 0) {
+    return (
+      <section className="page-stack">
+        <article className="panel">
+          <h2>{activeSession.test.title}</h2>
+          <p>
+            Backend API hozir student uchun savollar ro‘yxatini JSON ko‘rinishda qaytarmayapti.
+            Shu sabab testni frontend ichida render qilib bo‘lmaydi.
+          </p>
+          <div className="actions-row left">
+            <button type="button" className="btn btn-secondary" onClick={() => navigate("/student/tests")}>
+              Back to Tests
+            </button>
+          </div>
+        </article>
+      </section>
+    );
+  }
+
   if (!question) {
     return <ErrorState message="Invalid test state: question was not found." onRetry={() => navigate("/student")} />;
   }

@@ -1,8 +1,8 @@
 # Telegram Mini App Frontend (React + TypeScript)
 
-Production-grade Telegram Mini App frontend scaffold for your DRF backend, with a **mock-data mode enabled by default** for local development.
+Production-grade Telegram Mini App frontend scaffold for your DRF backend. Current default is **real backend mode** (`http://localhost:8000`).
 
-## Quick Start (Local Mock Data)
+## Quick Start (Real Backend)
 
 1. Install deps:
 
@@ -10,10 +10,10 @@ Production-grade Telegram Mini App frontend scaffold for your DRF backend, with 
 npm install
 ```
 
-2. Run frontend locally with mock data:
+2. Run frontend with backend:
 
 ```bash
-BUN_PUBLIC_USE_MOCK_DATA=true PORT=3001 bun run dev
+BUN_PUBLIC_USE_MOCK_DATA=false BUN_PUBLIC_API_BASE_URL=http://localhost:8000 PORT=3001 bun run dev
 ```
 
 3. Open:
@@ -22,19 +22,68 @@ BUN_PUBLIC_USE_MOCK_DATA=true PORT=3001 bun run dev
 http://localhost:3001
 ```
 
-## Switch To Real Backend
+## Run As Telegram Mini App (Local Laptop, Public Access)
+
+This setup keeps your database/backend on your laptop, but lets Telegram users open the Mini App.
+
+1. Start Django backend with Telegram bot token:
 
 ```bash
+cd /home/user01/Desktop/school_management_sysytem/school_project
+export TELEGRAM_BOT_TOKEN="<your_bot_token>"
+export TELEGRAM_TEACHER_IDS="123456789,987654321"   # optional whitelist
+export DJANGO_ALLOWED_HOSTS="localhost,127.0.0.1,.trycloudflare.com,.ngrok-free.app"
+export DJANGO_CSRF_TRUSTED_ORIGINS="http://localhost:3001,https://*.trycloudflare.com,https://*.ngrok-free.app"
+python3 manage.py runserver 0.0.0.0:8000
+```
+
+2. Expose backend and frontend over HTTPS (example with Cloudflare Tunnel):
+
+```bash
+# terminal A (backend tunnel)
+cloudflared tunnel --url http://localhost:8000
+
+# terminal B (frontend tunnel)
+cloudflared tunnel --url http://localhost:3001
+```
+
+3. Start frontend and point API to backend tunnel URL:
+
+```bash
+cd /home/user01/Downloads/telegram-mini-app-project
 BUN_PUBLIC_USE_MOCK_DATA=false \
-BUN_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 \
+BUN_PUBLIC_API_BASE_URL=https://<backend-tunnel-domain> \
+PORT=3001 \
+bun run dev
+```
+
+4. Configure bot WebApp in BotFather:
+
+- Use `/setmenubutton`
+- Select your bot
+- Set Web App URL to `https://<frontend-tunnel-domain>`
+
+5. Open your bot in Telegram and press the menu button.
+
+Notes:
+- Telegram login endpoint is `POST /school/telegram/login/` (WebApp `initData` verification).
+- New Telegram users are created as `student` by default. Teacher auto-provision works only for IDs in `TELEGRAM_TEACHER_IDS`.
+- Your laptop must stay online while users use the Mini App.
+- Tunnel URLs change on restart unless you use a reserved domain.
+
+## Switch To Mock Backend
+
+```bash
+BUN_PUBLIC_USE_MOCK_DATA=true \
+BUN_PUBLIC_API_BASE_URL=http://localhost:8000 \
 PORT=3001 \
 bun run dev
 ```
 
 ## Environment Variables
 
-- `BUN_PUBLIC_USE_MOCK_DATA` (`true`/`false`) default: `true`
-- `BUN_PUBLIC_API_BASE_URL` default: `http://127.0.0.1:8000`
+- `BUN_PUBLIC_USE_MOCK_DATA` (`true`/`false`) default: `false`
+- `BUN_PUBLIC_API_BASE_URL` default: `http://localhost:8000`
 - `BUN_PUBLIC_REQUEST_TIMEOUT_MS` default: `15000`
 - `BUN_PUBLIC_MOCK_LATENCY_MS` default: `220`
 - `PORT` or `BUN_PORT` default: `3000`
@@ -120,6 +169,7 @@ src/
   - `/teacher/tests/create`
   - `/teacher/tests/:id`
   - `/teacher/results/:testId`
+  - `/teacher/results/:testId/attempt/:attemptId`
 
 ## API Integration Map
 
@@ -127,9 +177,10 @@ Implemented endpoint usage:
 
 - Auth:
   - `POST /api-token-auth/`
-  - `POST /school/login/`
+  - `POST /school/telegram/login/`
   - `POST /school/logout/`
-  - `GET /school/profile/`
+  - `GET /school/student/`
+  - `GET /school/teacher/`
 - Student:
   - `GET /testapp/api/v1/student/tests/`
   - `POST /testapp/api/v1/student/tests/{test_id}/start/`
@@ -143,7 +194,7 @@ Implemented endpoint usage:
   - `POST /testapp/teacher/questions/`
   - `PATCH /testapp/teacher/questions/{id}/`
   - `DELETE /testapp/teacher/questions/{id}/`
-  - `GET /testapp/teacher/test/{test_id}/results/`
+  - `GET /testapp/api/v1/teacher/tests/{test_id}/results/`
 - Course/enrollment:
   - `GET /school/courses/`
   - `GET /school/enrollment/`
@@ -171,6 +222,11 @@ Implemented endpoint usage:
 - Mock backend rejects repeated submit for same attempt.
 - Student question payload excludes correctness data before submission.
 - Timeout auto-submit path is implemented in student test page.
+
+## Backend Notes
+
+- Student API v1 currently does not expose full question payload for test-taking (`/testapp/api/v1/student/tests/{id}/start/` returns only attempt metadata).  
+  Because of this, frontend in real-backend mode can list/start/submit attempts, but question rendering requires an additional backend endpoint returning test questions/options for student.
 
 ## Performance Notes
 

@@ -13,20 +13,39 @@ const getDefaultPath = (role: Role): string => (role === "teacher" ? "/teacher" 
 
 const extractErrorDetail = (error: unknown): string => {
   const typed = error as {
-    data?: { detail?: string; error?: string };
+    data?: { detail?: string; error?: string; message?: string } | string;
     status?: number | string;
     error?: string;
+    originalStatus?: number;
   };
 
+  const statusPart =
+    typeof typed?.status === "number"
+      ? ` (HTTP ${typed.status})`
+      : typed?.status === "PARSING_ERROR" && typed?.originalStatus
+        ? ` (HTTP ${typed.originalStatus})`
+        : "";
+
+  const dataString =
+    typeof typed?.data === "string" && typed.data.trim().length > 0
+      ? typed.data.trim().slice(0, 180)
+      : null;
+
+  const dataObject = typeof typed?.data === "object" && typed.data !== null ? typed.data : undefined;
+  const dataDetail =
+    (dataObject as { detail?: string; error?: string; message?: string } | undefined)?.detail ??
+    (dataObject as { detail?: string; error?: string; message?: string } | undefined)?.error ??
+    (dataObject as { detail?: string; error?: string; message?: string } | undefined)?.message;
+
   return (
-    typed?.data?.detail ??
-    typed?.data?.error ??
+    dataDetail ??
+    dataString ??
     typed?.error ??
     (typed?.status === "FETCH_ERROR"
-      ? "Network error: API endpoint is unreachable."
+      ? `Network error: API endpoint is unreachable.${typed?.error ? ` ${typed.error}` : ""}`
       : typed?.status === "PARSING_ERROR"
-        ? "Response parsing failed from API."
-        : "Request failed.")
+        ? `Response parsing failed from API${statusPart}. Backend may be returning HTML instead of JSON.`
+        : `Request failed${statusPart}.`)
   );
 };
 
@@ -156,6 +175,17 @@ export const HomePage = () => {
   }
 
   const loading = auth.status === "loading" || credentialsState.isLoading || telegramState.isLoading;
+  const loginEndpoint = `${appEnv.apiBaseUrl.replace(/\/$/, "")}/school/telegram/login/`;
+  const initDataKeys = telegramInitData
+    ? Array.from(
+        new Set(
+          telegramInitData
+            .split("&")
+            .map((part) => part.split("=")[0]?.trim())
+            .filter((value): value is string => Boolean(value))
+        )
+      )
+    : [];
 
   return (
     <section className="home-screen">
@@ -221,6 +251,20 @@ export const HomePage = () => {
         </p>
         <p>
           <strong>API Base:</strong> {appEnv.apiBaseUrl}
+        </p>
+        <p>
+          <strong>Inside Telegram:</strong> {insideTelegram ? "yes" : "no"}
+        </p>
+        <p>
+          <strong>initData:</strong> {telegramInitData ? `present (${telegramInitData.length} chars)` : "missing"}
+        </p>
+        {initDataKeys.length > 0 ? (
+          <p>
+            <strong>initData keys:</strong> {initDataKeys.join(", ")}
+          </p>
+        ) : null}
+        <p>
+          <strong>Telegram Login URL:</strong> {loginEndpoint}
         </p>
         {auth.error ? <p className="error-inline">{auth.error}</p> : null}
       </div>

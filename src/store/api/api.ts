@@ -454,24 +454,24 @@ export const api = createApi({
           return { data: mockProfile.data as UserProfile };
         }
 
-        const studentResult = await baseQuery("/school/student/");
-        if (studentResult.data) {
-          const student = studentResult.data as { id?: number; name?: string; email?: string; username?: string };
-          return { data: makeProfile(student, "student") };
-        }
-
-        if (studentResult.error?.status === 401) {
-          return { error: studentResult.error };
-        }
-
         const teacherResult = await baseQuery("/school/teacher/");
         if (teacherResult.data) {
           const teacher = teacherResult.data as { id?: number; name?: string; email?: string; username?: string };
           return { data: makeProfile(teacher, "teacher") };
         }
 
-        if (teacherResult.error) {
+        if (teacherResult.error?.status === 401) {
           return { error: teacherResult.error };
+        }
+
+        const studentResult = await baseQuery("/school/student/");
+        if (studentResult.data) {
+          const student = studentResult.data as { id?: number; name?: string; email?: string; username?: string };
+          return { data: makeProfile(student, "student") };
+        }
+
+        if (studentResult.error) {
+          return { error: studentResult.error };
         }
 
         return { error: makeError(404, "Unable to resolve user profile role.") };

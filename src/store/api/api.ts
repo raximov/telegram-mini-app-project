@@ -1315,7 +1315,7 @@ export const api = createApi({
 
     getEnrollmentTests: builder.query<EnrollmentTestAssignment[], void>({
       queryFn: async (_arg, _api, _extraOptions, baseQuery) => {
-        const result = await baseQuery("/testapp/teacher/enrollment/");
+        const result = await baseQuery("/testapp/teacher/enrollment-tests/");
         if (result.error) {
           return { error: result.error };
         }
@@ -1334,7 +1334,7 @@ export const api = createApi({
     >({
       queryFn: async ({ courseId, testId, attemptCount }, _api, _extraOptions, baseQuery) => {
         const result = await baseQuery({
-          url: "/testapp/teacher/enrollment/",
+          url: "/testapp/teacher/enrollment-tests/",
           method: "POST",
           body: {
             course_id: courseId,
@@ -1355,7 +1355,7 @@ export const api = createApi({
     deleteEnrollmentTest: builder.mutation<{ success: true }, number>({
       queryFn: async (id, _api, _extraOptions, baseQuery) => {
         const result = await baseQuery({
-          url: `/testapp/teacher/enrollment/${id}/`,
+          url: `/testapp/teacher/enrollment-tests/${id}/`,
           method: "DELETE",
         });
 

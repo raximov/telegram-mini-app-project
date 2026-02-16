@@ -223,11 +223,17 @@ export const runMockRequest = async (
       return { data: listStudents(authToken) };
     }
 
-    if (request.url === "/testapp/teacher/enrollment/" && request.method === "GET") {
+    if (
+      (request.url === "/testapp/teacher/enrollment/" || request.url === "/testapp/teacher/enrollment-tests/") &&
+      request.method === "GET"
+    ) {
       return { data: listEnrollmentTests(authToken) };
     }
 
-    if (request.url === "/testapp/teacher/enrollment/" && request.method === "POST") {
+    if (
+      (request.url === "/testapp/teacher/enrollment/" || request.url === "/testapp/teacher/enrollment-tests/") &&
+      request.method === "POST"
+    ) {
       return {
         data: createEnrollmentTest(
           authToken,
@@ -236,7 +242,10 @@ export const runMockRequest = async (
       };
     }
 
-    const enrollmentTestMatch = isMatch(request.url, /^\/testapp\/teacher\/enrollment\/(\d+)\/?$/);
+    const enrollmentTestMatch = isMatch(
+      request.url,
+      /^\/testapp\/teacher\/(?:enrollment|enrollment-tests)\/(\d+)\/?$/
+    );
     if (enrollmentTestMatch && request.method === "DELETE") {
       return { data: deleteEnrollmentTest(authToken, Number(enrollmentTestMatch[1])) };
     }

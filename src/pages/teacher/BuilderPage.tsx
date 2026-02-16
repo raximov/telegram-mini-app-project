@@ -71,8 +71,7 @@ export const TeacherBuilderPage = () => {
     for (const questionId of payload.deletedQuestionIds) {
       await deleteQuestion(questionId).unwrap();
     }
-
-    await refetch();
+    navigate("/teacher/tests");
   };
 
   if (editMode && isLoading) {

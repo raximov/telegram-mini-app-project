@@ -24,6 +24,7 @@ import type {
   TeacherQuestionInput,
   TeacherResultsSummary,
   TeacherTest,
+  TestStatus,
   UserProfile,
 } from "@/types/domain";
 
@@ -41,6 +42,10 @@ type LoginResponse = {
 type BackendStudentTest = {
   id: number;
   title: string;
+  description?: string;
+  status?: string;
+  time_limit_sec?: number;
+  passing_percent?: number;
   teacher?: number | null;
   question_count?: number;
   created_at?: string;
@@ -53,6 +58,8 @@ type BackendStartAttempt = {
   test?: {
     id: number;
     title: string;
+    description?: string;
+    time_limit_sec?: number;
     questions?: BackendStartQuestion[];
   };
 };
@@ -84,7 +91,13 @@ type BackendAttemptResult = {
 type BackendTeacherTest = {
   id: number;
   title: string;
+  description?: string;
+  status?: string;
+  time_limit_sec?: number;
+  passing_percent?: number;
   teacher?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 type BackendQuestion = {
@@ -248,6 +261,27 @@ const parseQuestionType = (value: unknown): QuestionType => {
 
   return "short";
 };
+
+const parseTestStatus = (value: unknown): TestStatus => {
+  if (value === "draft" || value === "published" || value === "archived") {
+    return value;
+  }
+
+  return "draft";
+};
+
+const toTeacherTestModel = (test: BackendTeacherTest, questions: TeacherQuestion[] = []): TeacherTest => ({
+  id: test.id,
+  title: test.title,
+  description: test.description ?? "",
+  status: parseTestStatus(test.status),
+  timeLimitSec: normalizeNumber(test.time_limit_sec, 1800),
+  passingPercent: normalizeNumber(test.passing_percent, 60),
+  courseId: null,
+  questions,
+  createdAt: test.created_at ?? new Date().toISOString(),
+  updatedAt: test.updated_at ?? new Date().toISOString(),
+});
 
 const toTeacherQuestion = (question: BackendQuestion, answers: BackendAnswer[]): TeacherQuestion => {
   const mappedType = mapStudentQuestionType(question.question_type, answers);
@@ -499,9 +533,9 @@ export const api = createApi({
         const mapped = rows.map((row) => ({
           id: row.id,
           title: row.title,
-          description: "",
+          description: row.description ?? "",
           questionCount: normalizeNumber(row.question_count, 0),
-          timeLimitSec: 1800,
+          timeLimitSec: normalizeNumber(row.time_limit_sec, 1800),
           status: "open" as const,
         }));
 
@@ -557,8 +591,8 @@ export const api = createApi({
             test: {
               id: testId,
               title: startData.test?.title ?? current?.title ?? `Test ${testId}`,
-              description: "",
-              timeLimitSec: 1800,
+              description: startData.test?.description ?? current?.description ?? "",
+              timeLimitSec: normalizeNumber(startData.test?.time_limit_sec ?? current?.time_limit_sec, 1800),
               questions: mappedQuestions,
             },
           },
@@ -682,18 +716,7 @@ export const api = createApi({
 
         const rows = Array.isArray(result.data) ? (result.data as BackendTeacherTest[]) : [];
         return {
-          data: rows.map((row) => ({
-            id: row.id,
-            title: row.title,
-            description: "",
-            status: "draft",
-            timeLimitSec: 1800,
-            passingPercent: 60,
-            courseId: null,
-            questions: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          })),
+          data: rows.map((row) => toTeacherTestModel(row)),
         };
       },
       providesTags: ["TeacherTests"],
@@ -735,18 +758,7 @@ export const api = createApi({
         }
 
         return {
-          data: {
-            id: test.id,
-            title: test.title,
-            description: "",
-            status: "draft",
-            timeLimitSec: 1800,
-            passingPercent: 60,
-            courseId: null,
-            questions: mappedQuestions,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
+          data: toTeacherTestModel(test, mappedQuestions),
         };
       },
       providesTags: (_result, _error, testId) => [{ type: "TeacherTests", id: testId }],
@@ -771,7 +783,13 @@ export const api = createApi({
         const result = await baseQuery({
           url: "/testapp/teacher/tests/",
           method: "POST",
-          body: { title: payload.title ?? "Untitled Test" },
+          body: {
+            title: payload.title ?? "Untitled Test",
+            description: payload.description ?? "",
+            status: parseTestStatus(payload.status),
+            time_limit_sec: normalizeNumber(payload.timeLimitSec, 1800),
+            passing_percent: normalizeNumber(payload.passingPercent, 60),
+          },
         });
 
         if (result.error) {
@@ -779,20 +797,7 @@ export const api = createApi({
         }
 
         const row = result.data as BackendTeacherTest;
-        return {
-          data: {
-            id: row.id,
-            title: row.title,
-            description: "",
-            status: "draft",
-            timeLimitSec: 1800,
-            passingPercent: 60,
-            courseId: null,
-            questions: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        };
+        return { data: toTeacherTestModel(row) };
       },
       invalidatesTags: ["TeacherTests"],
     }),
@@ -816,7 +821,13 @@ export const api = createApi({
         const result = await baseQuery({
           url: `/testapp/teacher/tests/${id}/`,
           method: "PATCH",
-          body: { title: data.title ?? "Untitled Test" },
+          body: {
+            ...(typeof data.title === "string" ? { title: data.title } : {}),
+            ...(typeof data.description === "string" ? { description: data.description } : {}),
+            ...(typeof data.status === "string" ? { status: parseTestStatus(data.status) } : {}),
+            ...(typeof data.timeLimitSec === "number" ? { time_limit_sec: data.timeLimitSec } : {}),
+            ...(typeof data.passingPercent === "number" ? { passing_percent: data.passingPercent } : {}),
+          },
         });
 
         if (result.error) {
@@ -824,20 +835,7 @@ export const api = createApi({
         }
 
         const row = result.data as BackendTeacherTest;
-        return {
-          data: {
-            id: row.id,
-            title: row.title,
-            description: "",
-            status: "draft",
-            timeLimitSec: 1800,
-            passingPercent: 60,
-            courseId: null,
-            questions: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        };
+        return { data: toTeacherTestModel(row) };
       },
       invalidatesTags: (_result, _error, payload) => ["TeacherTests", { type: "TeacherTests", id: payload.id }],
     }),

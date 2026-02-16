@@ -1330,7 +1330,6 @@ export const api = createApi({
         const candidates = [
           "/testapp/teacher/enrollment-tests/",
           "/testapp/enrollment-tests/",
-          "/testapp/teacher/enrollment/",
         ];
 
         let lastError: FetchBaseQueryError | undefined;
@@ -1364,7 +1363,6 @@ export const api = createApi({
         const candidates = [
           "/testapp/teacher/enrollment-tests/",
           "/testapp/enrollment-tests/",
-          "/testapp/teacher/enrollment/",
         ];
         const body = {
           course_id: courseId,
@@ -1402,7 +1400,6 @@ export const api = createApi({
         const candidates = [
           `/testapp/teacher/enrollment-tests/${id}/`,
           `/testapp/enrollment-tests/${id}/`,
-          `/testapp/teacher/enrollment/${id}/`,
         ];
 
         let lastError: FetchBaseQueryError | undefined;

@@ -96,6 +96,24 @@ const createEmptyQuestion = (): QuestionDraft => ({
   explanation: "",
 });
 
+const ensureChoiceDefaults = (draft: QuestionDraft): QuestionDraft => {
+  if ((draft.type !== "single" && draft.type !== "multiple") || draft.options.length >= 2) {
+    return draft;
+  }
+
+  const missing = 2 - draft.options.length;
+  const padding = Array.from({ length: missing }).map(() => ({
+    localId: randomId(),
+    text: "",
+    isCorrect: false,
+  }));
+
+  return {
+    ...draft,
+    options: [...draft.options, ...padding],
+  };
+};
+
 export const toQuestionInput = (draft: QuestionDraft): TeacherQuestionInput => {
   const options = draft.options.map((option) => ({
     text: option.text,
@@ -133,7 +151,7 @@ export const TeacherTestBuilder = ({ initialTest, submitting, onSubmit }: Teache
   const [passingPercent, setPassingPercent] = useState(initialTest?.passingPercent ?? 60);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionDraft[]>(
-    initialTest ? initialTest.questions.map(toQuestionDraft) : [createEmptyQuestion()]
+    initialTest ? initialTest.questions.map(toQuestionDraft).map(ensureChoiceDefaults) : [createEmptyQuestion()]
   );
   const [deletedQuestionIds, setDeletedQuestionIds] = useState<number[]>([]);
 
@@ -187,6 +205,51 @@ export const TeacherTestBuilder = ({ initialTest, submitting, onSubmit }: Teache
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     setSubmitError(null);
+
+    if (status === "published") {
+      if (questions.length === 0) {
+        setSubmitError("Published test must contain at least one question.");
+        return;
+      }
+
+      for (let index = 0; index < questions.length; index += 1) {
+        const question = questions[index]!;
+        const questionNo = index + 1;
+
+        if (!question.prompt.trim()) {
+          setSubmitError(`Question ${questionNo}: prompt is required.`);
+          return;
+        }
+
+        if (question.type === "single" || question.type === "multiple") {
+          const nonEmpty = question.options.filter((option) => option.text.trim().length > 0);
+          const nonEmptyCorrect = nonEmpty.filter((option) => option.isCorrect);
+
+          if (nonEmpty.length < 2) {
+            setSubmitError(`Question ${questionNo}: add at least 2 non-empty options.`);
+            return;
+          }
+
+          if (nonEmptyCorrect.length === 0) {
+            setSubmitError(`Question ${questionNo}: mark at least 1 correct option.`);
+            return;
+          }
+        }
+
+        if (question.type === "short" && !question.correctText.trim()) {
+          setSubmitError(`Question ${questionNo}: correct text is required.`);
+          return;
+        }
+
+        if (question.type === "numeric") {
+          const parsed = Number(question.correctNumber);
+          if (!Number.isFinite(parsed)) {
+            setSubmitError(`Question ${questionNo}: correct number is required.`);
+            return;
+          }
+        }
+      }
+    }
 
     try {
       await onSubmit({

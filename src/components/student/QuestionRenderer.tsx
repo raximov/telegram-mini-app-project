@@ -14,6 +14,20 @@ const checked = (array: number[] | undefined, value: number): boolean => {
 export const QuestionRenderer = ({ question, value, disabled = false, onChange }: QuestionRendererProps) => {
   const selected = value?.selectedOptionIds ?? [];
 
+  const noOptionsForChoice =
+    (question.type === "single" || question.type === "multiple") &&
+    (!Array.isArray(question.options) || question.options.length === 0);
+
+  if (noOptionsForChoice) {
+    return (
+      <div className="question-body">
+        <p className="error-inline">
+          This question has no answer options configured. Ask your teacher to update the test.
+        </p>
+      </div>
+    );
+  }
+
   if (question.type === "single") {
     return (
       <div className="question-body">
@@ -31,7 +45,7 @@ export const QuestionRenderer = ({ question, value, disabled = false, onChange }
               }
               disabled={disabled}
             />
-            <span>{option.text}</span>
+            <span className="choice-text">{option.text}</span>
           </label>
         ))}
       </div>
@@ -58,7 +72,7 @@ export const QuestionRenderer = ({ question, value, disabled = false, onChange }
               }}
               disabled={disabled}
             />
-            <span>{option.text}</span>
+            <span className="choice-text">{option.text}</span>
           </label>
         ))}
       </div>

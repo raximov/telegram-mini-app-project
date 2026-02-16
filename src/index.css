@@ -342,7 +342,7 @@ button {
 
 .choice-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.6rem;
   border: 1px solid var(--border);
   border-radius: 0.75rem;
@@ -352,6 +352,18 @@ button {
 
 .choice-item input {
   accent-color: var(--tg-button);
+  flex: 0 0 auto;
+  margin-top: 0.22rem;
+}
+
+.choice-item .choice-text {
+  display: block;
+  margin: 0;
+  color: var(--tg-text);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .answer-input,

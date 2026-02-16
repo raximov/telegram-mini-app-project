@@ -16,8 +16,15 @@ const formatSeconds = (value: number): string => {
 };
 
 const parseErrorDetail = (error: unknown): string => {
-  const typed = error as { data?: { detail?: string } };
-  return typed?.data?.detail ?? "Operation failed.";
+  const typed = error as { data?: { detail?: string; invalid_questions?: string[] } };
+  const detail = typed?.data?.detail;
+  const invalid = typed?.data?.invalid_questions;
+
+  if (Array.isArray(invalid) && invalid.length > 0) {
+    return `${detail ?? "Test is invalid."} ${invalid.join(" ")}`;
+  }
+
+  return detail ?? "Operation failed.";
 };
 
 export const StudentTestPage = () => {

@@ -1,16 +1,22 @@
 import type { FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import {
+  createCourse,
+  createEnrollment,
+  createEnrollmentTest,
   getTeacherAttemptDetails,
   createTeacherQuestion,
   createTeacherTest,
+  deleteEnrollmentTest,
   deleteTeacherQuestion,
   deleteTeacherTest,
   getProfile,
   getStudentAttemptResult,
   getTeacherResults,
   getTeacherTest,
+  listEnrollmentTests,
   listCourses,
   listEnrollment,
+  listStudents,
   listStudentTests,
   listTeacherTests,
   loginMockUser,
@@ -196,8 +202,43 @@ export const runMockRequest = async (
       return { data: listCourses(authToken) };
     }
 
+    if (request.url === "/school/courses/" && request.method === "POST") {
+      return { data: createCourse(authToken, (request.body ?? {}) as { title?: string }) };
+    }
+
     if (request.url === "/school/enrollment/" && request.method === "GET") {
       return { data: listEnrollment(authToken) };
+    }
+
+    if (request.url === "/school/enrollment/" && request.method === "POST") {
+      return {
+        data: createEnrollment(
+          authToken,
+          (request.body ?? {}) as { student?: number; course?: number }
+        ),
+      };
+    }
+
+    if (request.url === "/school/students/" && request.method === "GET") {
+      return { data: listStudents(authToken) };
+    }
+
+    if (request.url === "/testapp/teacher/enrollment/" && request.method === "GET") {
+      return { data: listEnrollmentTests(authToken) };
+    }
+
+    if (request.url === "/testapp/teacher/enrollment/" && request.method === "POST") {
+      return {
+        data: createEnrollmentTest(
+          authToken,
+          (request.body ?? {}) as { course_id?: number; test_id?: number; attempt_count?: number }
+        ),
+      };
+    }
+
+    const enrollmentTestMatch = isMatch(request.url, /^\/testapp\/teacher\/enrollment\/(\d+)\/?$/);
+    if (enrollmentTestMatch && request.method === "DELETE") {
+      return { data: deleteEnrollmentTest(authToken, Number(enrollmentTestMatch[1])) };
     }
 
     return {

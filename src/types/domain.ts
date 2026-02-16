@@ -181,12 +181,28 @@ export interface Course {
   name: string;
 }
 
+export interface StudentDirectoryItem {
+  id: number;
+  name: string;
+}
+
 export interface Enrollment {
   id: number;
   courseId: number;
   courseName: string;
   studentId: number;
   studentName: string;
+}
+
+export interface EnrollmentTestAssignment {
+  id: number;
+  courseId: number;
+  courseName: string;
+  testId: number;
+  testTitle: string;
+  attemptCount: number;
+  startDate: string | null;
+  endDate: string | null;
 }
 
 export interface ApiErrorPayload {

@@ -49,9 +49,14 @@ export const TeacherDashboardPage = () => {
       <article className="panel">
         <div className="panel-header">
           <h3>Quick Actions</h3>
-          <Link to="/teacher/tests/create" className="btn btn-primary">
-            Create Test
-          </Link>
+          <div className="actions-row left">
+            <Link to="/teacher/assignments" className="btn btn-secondary">
+              Manage Assignments
+            </Link>
+            <Link to="/teacher/tests/create" className="btn btn-primary">
+              Create Test
+            </Link>
+          </div>
         </div>
 
         <div className="card-grid">

@@ -13,10 +13,12 @@ import type {
   AttemptAnswerInput,
   AttemptResult,
   Course,
+  EnrollmentTestAssignment,
   Enrollment,
   QuestionType,
   Role,
   StartAttemptResponse,
+  StudentDirectoryItem,
   StudentQuestion,
   StudentTestSummary,
   TeacherAttemptDetail,
@@ -148,6 +150,24 @@ type BackendTeacherAttemptDetail = {
   started_at?: string;
   completed_at?: string | null;
   questions?: BackendTeacherAttemptQuestion[];
+};
+
+type BackendStudent = {
+  id?: number;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+};
+
+type BackendEnrollmentTest = {
+  id?: number;
+  course?: number | { id?: number; title?: string; name?: string };
+  test?: number | { id?: number; title?: string; name?: string };
+  course_id?: number;
+  test_id?: number;
+  attempt_count?: number;
+  start_date?: string | null;
+  end_date?: string | null;
 };
 
 const rawBaseQuery = fetchBaseQuery({
@@ -283,6 +303,28 @@ const toTeacherTestModel = (test: BackendTeacherTest, questions: TeacherQuestion
   updatedAt: test.updated_at ?? new Date().toISOString(),
 });
 
+const mapEnrollmentTest = (row: BackendEnrollmentTest): EnrollmentTestAssignment => {
+  const courseFromNested = typeof row.course === "object" && row.course !== null ? row.course : undefined;
+  const testFromNested = typeof row.test === "object" && row.test !== null ? row.test : undefined;
+
+  return {
+    id: normalizeNumber(row.id, 0),
+    courseId: normalizeNumber(
+      row.course_id ?? (typeof row.course === "number" ? row.course : courseFromNested?.id),
+      0
+    ),
+    courseName: String(courseFromNested?.title ?? courseFromNested?.name ?? `Course ${row.course_id ?? ""}`),
+    testId: normalizeNumber(
+      row.test_id ?? (typeof row.test === "number" ? row.test : testFromNested?.id),
+      0
+    ),
+    testTitle: String(testFromNested?.title ?? testFromNested?.name ?? `Test ${row.test_id ?? ""}`),
+    attemptCount: normalizeNumber(row.attempt_count, 3),
+    startDate: row.start_date ?? null,
+    endDate: row.end_date ?? null,
+  };
+};
+
 const toTeacherQuestion = (question: BackendQuestion, answers: BackendAnswer[]): TeacherQuestion => {
   const mappedType = mapStudentQuestionType(question.question_type, answers);
   const correctAnswer = answers.find((answer) => answer.is_correct);
@@ -401,7 +443,17 @@ const baseQueryWithMode: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const api = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithMode,
-  tagTypes: ["Profile", "StudentTests", "Attempt", "TeacherTests", "TeacherResults", "Courses", "Enrollment"],
+  tagTypes: [
+    "Profile",
+    "StudentTests",
+    "Attempt",
+    "TeacherTests",
+    "TeacherResults",
+    "Courses",
+    "Enrollment",
+    "Students",
+    "Assignments",
+  ],
   endpoints: (builder) => ({
     loginWithTelegram: builder.mutation<LoginResponse, { initData: string; roleHint?: Role }>({
       queryFn: async (payload, _api, _extraOptions, baseQuery) => {
@@ -1166,6 +1218,155 @@ export const api = createApi({
       },
       providesTags: ["Enrollment"],
     }),
+
+    getStudents: builder.query<StudentDirectoryItem[], void>({
+      queryFn: async (_arg, _api, _extraOptions, baseQuery) => {
+        if (appEnv.useMockData) {
+          const mockResult = await baseQuery("/school/students/");
+          if (mockResult.error) {
+            return { error: mockResult.error };
+          }
+
+          return { data: mockResult.data as StudentDirectoryItem[] };
+        }
+
+        const result = await baseQuery("/school/students/");
+        if (result.error) {
+          return { error: result.error };
+        }
+
+        const rows = Array.isArray(result.data) ? (result.data as BackendStudent[]) : [];
+        return {
+          data: rows.map((row) => ({
+            id: normalizeNumber(row.id, 0),
+            name:
+              (row.name && String(row.name).trim()) ||
+              [row.first_name, row.last_name]
+                .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+                .join(" ") ||
+              `Student ${row.id ?? ""}`,
+          })),
+        };
+      },
+      providesTags: ["Students"],
+    }),
+
+    createCourse: builder.mutation<Course, { title: string; teacherId: number }>({
+      queryFn: async ({ title, teacherId }, _api, _extraOptions, baseQuery) => {
+        const body = {
+          title,
+          description: "",
+          teacher: teacherId,
+          schedule: {
+            days: [],
+            time: "TBD",
+          },
+        };
+
+        const result = await baseQuery({
+          url: "/school/courses/",
+          method: "POST",
+          body,
+        });
+
+        if (result.error) {
+          return { error: result.error };
+        }
+
+        const row = result.data as Record<string, unknown>;
+        return {
+          data: {
+            id: normalizeNumber(row.id, 0),
+            name: String(row.title ?? row.name ?? title),
+          },
+        };
+      },
+      invalidatesTags: ["Courses"],
+    }),
+
+    createEnrollment: builder.mutation<Enrollment, { studentId: number; courseId: number }>({
+      queryFn: async ({ studentId, courseId }, _api, _extraOptions, baseQuery) => {
+        const result = await baseQuery({
+          url: "/school/enrollment/",
+          method: "POST",
+          body: {
+            student: studentId,
+            course: courseId,
+          },
+        });
+
+        if (result.error) {
+          return { error: result.error };
+        }
+
+        const row = result.data as Record<string, unknown>;
+        return {
+          data: {
+            id: normalizeNumber(row.id, 0),
+            courseId: normalizeNumber(row.course, courseId),
+            courseName: String(row.course_title ?? row.course_name ?? `Course ${row.course ?? courseId}`),
+            studentId: normalizeNumber(row.student, studentId),
+            studentName: String(row.student_name ?? `Student ${row.student ?? studentId}`),
+          },
+        };
+      },
+      invalidatesTags: ["Enrollment"],
+    }),
+
+    getEnrollmentTests: builder.query<EnrollmentTestAssignment[], void>({
+      queryFn: async (_arg, _api, _extraOptions, baseQuery) => {
+        const result = await baseQuery("/testapp/teacher/enrollment/");
+        if (result.error) {
+          return { error: result.error };
+        }
+
+        const rows = Array.isArray(result.data) ? (result.data as BackendEnrollmentTest[]) : [];
+        return {
+          data: rows.map(mapEnrollmentTest),
+        };
+      },
+      providesTags: ["Assignments"],
+    }),
+
+    createEnrollmentTest: builder.mutation<
+      EnrollmentTestAssignment,
+      { courseId: number; testId: number; attemptCount: number }
+    >({
+      queryFn: async ({ courseId, testId, attemptCount }, _api, _extraOptions, baseQuery) => {
+        const result = await baseQuery({
+          url: "/testapp/teacher/enrollment/",
+          method: "POST",
+          body: {
+            course_id: courseId,
+            test_id: testId,
+            attempt_count: attemptCount,
+          },
+        });
+
+        if (result.error) {
+          return { error: result.error };
+        }
+
+        return { data: mapEnrollmentTest(result.data as BackendEnrollmentTest) };
+      },
+      invalidatesTags: ["Assignments"],
+    }),
+
+    deleteEnrollmentTest: builder.mutation<{ success: true }, number>({
+      queryFn: async (id, _api, _extraOptions, baseQuery) => {
+        const result = await baseQuery({
+          url: `/testapp/teacher/enrollment/${id}/`,
+          method: "DELETE",
+        });
+
+        if (result.error) {
+          return { error: result.error };
+        }
+
+        return { data: { success: true } };
+      },
+      invalidatesTags: ["Assignments"],
+    }),
   }),
 });
 
@@ -1191,4 +1392,10 @@ export const {
   useGetTeacherAttemptDetailsQuery,
   useGetCoursesQuery,
   useGetEnrollmentQuery,
+  useGetStudentsQuery,
+  useCreateCourseMutation,
+  useCreateEnrollmentMutation,
+  useGetEnrollmentTestsQuery,
+  useCreateEnrollmentTestMutation,
+  useDeleteEnrollmentTestMutation,
 } = api;

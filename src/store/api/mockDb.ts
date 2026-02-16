@@ -3,10 +3,12 @@ import type {
   AttemptResult,
   AuthSession,
   Course,
+  EnrollmentTestAssignment,
   Enrollment,
   QuestionOption,
   Role,
   StartAttemptResponse,
+  StudentDirectoryItem,
   StudentAttempt,
   StudentQuestion,
   StudentTestSummary,
@@ -88,6 +90,9 @@ let questionSequence = 5000;
 let optionSequence = 9000;
 let testSequence = 900;
 let attemptSequence = 1200;
+let courseSequence = 2;
+let enrollmentSequence = 2;
+let enrollmentTestSequence = 3;
 
 const buildQuestion = (input: {
   prompt: string;
@@ -223,6 +228,18 @@ const initialTests: TeacherTest[] = [
 ];
 
 const tests: TeacherTest[] = clone(initialTests);
+const enrollmentTests: EnrollmentTestAssignment[] = tests
+  .filter((test) => test.courseId !== null)
+  .map((test) => ({
+    id: ++enrollmentTestSequence,
+    courseId: test.courseId as number,
+    courseName: courses.find((course) => course.id === test.courseId)?.name ?? `Course ${test.courseId}`,
+    testId: test.id,
+    testTitle: test.title,
+    attemptCount: 3,
+    startDate: null,
+    endDate: null,
+  }));
 const attempts: StoredAttempt[] = [];
 const sessions = new Map<string, SessionRecord>();
 
@@ -316,7 +333,18 @@ export const listStudentTests = (token: string | null): StudentTestSummary[] => 
     throw new Error("UNAUTHORIZED");
   }
 
-  return getPublishedTests().map((test) => {
+  const studentCourseIds = enrollment
+    .filter((item) => item.studentId === session.userId)
+    .map((item) => item.courseId);
+  const assignedTestIds = new Set(
+    enrollmentTests
+      .filter((item) => studentCourseIds.includes(item.courseId))
+      .map((item) => item.testId)
+  );
+
+  return getPublishedTests()
+    .filter((test) => assignedTestIds.has(test.id))
+    .map((test) => {
     const hasSubmitted = attempts.some(
       (attempt) =>
         attempt.studentId === session.userId &&
@@ -868,4 +896,132 @@ export const listEnrollment = (token: string | null): Enrollment[] => {
   }
 
   return clone(enrollment);
+};
+
+export const listStudents = (token: string | null): StudentDirectoryItem[] => {
+  const session = resolveSession(token);
+  if (!session || session.role !== "teacher") {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  return clone(
+    users
+      .filter((user) => user.role === "student")
+      .map((user) => ({
+        id: user.id,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+      }))
+  );
+};
+
+export const createCourse = (token: string | null, payload: { title?: string }): Course => {
+  const session = resolveSession(token);
+  if (!session || session.role !== "teacher") {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const title = payload.title?.trim() || "New Course";
+
+  const course: Course = {
+    id: ++courseSequence,
+    name: title,
+  };
+  courses.push(course);
+  return clone(course);
+};
+
+export const createEnrollment = (
+  token: string | null,
+  payload: { student?: number; course?: number }
+): Enrollment => {
+  const session = resolveSession(token);
+  if (!session || session.role !== "teacher") {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const studentId = Number(payload.student);
+  const courseId = Number(payload.course);
+
+  const student = users.find((user) => user.id === studentId && user.role === "student");
+  const course = courses.find((item) => item.id === courseId);
+  if (!student || !course) {
+    throw new Error("NOT_FOUND");
+  }
+
+  const existing = enrollment.find((item) => item.studentId === studentId && item.courseId === courseId);
+  if (existing) {
+    return clone(existing);
+  }
+
+  const created: Enrollment = {
+    id: ++enrollmentSequence,
+    studentId,
+    studentName: `${student.firstName} ${student.lastName}`.trim(),
+    courseId,
+    courseName: course.name,
+  };
+  enrollment.push(created);
+  return clone(created);
+};
+
+export const listEnrollmentTests = (token: string | null): EnrollmentTestAssignment[] => {
+  const session = resolveSession(token);
+  if (!session || session.role !== "teacher") {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  return clone(enrollmentTests);
+};
+
+export const createEnrollmentTest = (
+  token: string | null,
+  payload: { course_id?: number; test_id?: number; attempt_count?: number }
+): EnrollmentTestAssignment => {
+  const session = resolveSession(token);
+  if (!session || session.role !== "teacher") {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const courseId = Number(payload.course_id);
+  const testId = Number(payload.test_id);
+  const attemptCount = Number(payload.attempt_count ?? 3);
+
+  const course = courses.find((item) => item.id === courseId);
+  const test = tests.find((item) => item.id === testId);
+  if (!course || !test) {
+    throw new Error("NOT_FOUND");
+  }
+
+  const existing = enrollmentTests.find((item) => item.courseId === courseId && item.testId === testId);
+  if (existing) {
+    return clone(existing);
+  }
+
+  const assignment: EnrollmentTestAssignment = {
+    id: ++enrollmentTestSequence,
+    courseId,
+    courseName: course.name,
+    testId,
+    testTitle: test.title,
+    attemptCount: Number.isFinite(attemptCount) && attemptCount > 0 ? attemptCount : 3,
+    startDate: null,
+    endDate: null,
+  };
+  enrollmentTests.push(assignment);
+  return clone(assignment);
+};
+
+export const deleteEnrollmentTest = (token: string | null, assignmentId: number): { success: true } => {
+  const session = resolveSession(token);
+  if (!session || session.role !== "teacher") {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const index = enrollmentTests.findIndex((item) => item.id === assignmentId);
+  if (index === -1) {
+    throw new Error("NOT_FOUND");
+  }
+
+  enrollmentTests.splice(index, 1);
+  return { success: true };
 };

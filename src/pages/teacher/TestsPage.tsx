@@ -23,9 +23,14 @@ export const TeacherTestsPage = () => {
       <article className="panel">
         <div className="panel-header">
           <h2>All Tests</h2>
-          <Link to="/teacher/tests/create" className="btn btn-primary">
-            New Test
-          </Link>
+          <div className="actions-row left">
+            <Link to="/teacher/assignments" className="btn btn-secondary">
+              Assignments
+            </Link>
+            <Link to="/teacher/tests/create" className="btn btn-primary">
+              New Test
+            </Link>
+          </div>
         </div>
 
         <div className="table-wrap">

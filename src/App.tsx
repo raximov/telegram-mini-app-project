@@ -15,6 +15,7 @@ const TeacherTestsPage = lazy(() => import("@/pages/teacher/TestsPage"));
 const TeacherBuilderPage = lazy(() => import("@/pages/teacher/BuilderPage"));
 const TeacherResultsPage = lazy(() => import("@/pages/teacher/ResultsPage"));
 const TeacherAttemptDetailsPage = lazy(() => import("@/pages/teacher/AttemptDetailsPage"));
+const TeacherAssignmentsPage = lazy(() => import("@/pages/teacher/AssignmentsPage"));
 
 export const App = () => {
   useSessionBootstrap();
@@ -72,6 +73,14 @@ export const App = () => {
               element={
                 <ProtectedRoute allowRoles={["teacher"]}>
                   <TeacherTestsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/assignments"
+              element={
+                <ProtectedRoute allowRoles={["teacher"]}>
+                  <TeacherAssignmentsPage />
                 </ProtectedRoute>
               }
             />

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useGetStudentTestsQuery } from "@/store/api/api";
+import { useGetEnrollmentQuery, useGetStudentTestsQuery } from "@/store/api/api";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setSelectedTestId, setStudentFilter } from "@/store/slices/testSlice";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -8,9 +8,11 @@ import { ErrorState } from "@/components/common/ErrorState";
 export const StudentDashboardPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const profile = useAppSelector((state) => state.user.profile);
 
   const filter = useAppSelector((state) => state.test.studentFilter);
   const { data, isLoading, isError, error, refetch } = useGetStudentTestsQuery();
+  const { data: enrollmentData } = useGetEnrollmentQuery();
 
   if (isLoading) {
     return <LoadingState label="Loading available tests..." />;
@@ -23,12 +25,24 @@ export const StudentDashboardPage = () => {
 
   const tests = data ?? [];
   const filtered = filter === "all" ? tests : tests.filter((test) => test.status === filter);
+  const myEnrollment = (enrollmentData ?? []).filter((row) => row.studentId === profile?.id);
 
   return (
     <section className="page-stack">
       <div className="panel panel-tight">
         <h2>My Tests</h2>
         <p>Take published tests and submit before timeout.</p>
+
+        <dl className="stats-grid">
+          <div>
+            <dt>Assigned Courses</dt>
+            <dd>{myEnrollment.length}</dd>
+          </div>
+          <div>
+            <dt>Available Tests</dt>
+            <dd>{tests.length}</dd>
+          </div>
+        </dl>
 
         <div className="pill-row">
           <button
@@ -96,6 +110,10 @@ export const StudentDashboardPage = () => {
       {filtered.length === 0 ? (
         <div className="panel">
           <p>No tests match this filter.</p>
+          <p className="muted">
+            If this stays empty, ask your teacher to enroll you into a course and assign a published test to that
+            course.
+          </p>
           <Link to="/student/tests" className="btn btn-secondary">
             Reset
           </Link>

@@ -24,6 +24,9 @@ const getHeaderTitle = (pathname: string): string => {
   if (pathname.startsWith("/teacher/tests/create")) {
     return "Create Test";
   }
+  if (pathname.startsWith("/teacher/assignments")) {
+    return "Assignments";
+  }
   if (pathname.startsWith("/teacher/tests/") && pathname !== "/teacher/tests") {
     return "Edit Test";
   }
@@ -108,6 +111,12 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
             <>
               <Link to="/teacher/tests" className={location.pathname.startsWith("/teacher/tests") ? "active" : ""}>
                 Tests
+              </Link>
+              <Link
+                to="/teacher/assignments"
+                className={location.pathname.startsWith("/teacher/assignments") ? "active" : ""}
+              >
+                Assignments
               </Link>
               <Link to="/teacher" className={location.pathname === "/teacher" ? "active" : ""}>
                 Dashboard

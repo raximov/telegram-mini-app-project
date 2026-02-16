@@ -388,6 +388,18 @@ const toStudentQuestionFromStart = (question: BackendStartQuestion): StudentQues
   };
 };
 
+const shouldTryNextEndpoint = (error?: FetchBaseQueryError): boolean => {
+  if (!error) {
+    return false;
+  }
+
+  if (typeof error.status === "number") {
+    return error.status === 404 || error.status === 405;
+  }
+
+  return error.status === "PARSING_ERROR";
+};
+
 const buildAnswerPayloads = (input: TeacherQuestionInput): Array<{ text: string; is_correct: boolean }> => {
   if (input.type === "single" || input.type === "multiple") {
     return input.options
@@ -1315,15 +1327,31 @@ export const api = createApi({
 
     getEnrollmentTests: builder.query<EnrollmentTestAssignment[], void>({
       queryFn: async (_arg, _api, _extraOptions, baseQuery) => {
-        const result = await baseQuery("/testapp/teacher/enrollment-tests/");
-        if (result.error) {
-          return { error: result.error };
+        const candidates = [
+          "/testapp/teacher/enrollment-tests/",
+          "/testapp/enrollment-tests/",
+          "/testapp/teacher/enrollment/",
+        ];
+
+        let lastError: FetchBaseQueryError | undefined;
+
+        for (const url of candidates) {
+          const result = await baseQuery(url);
+          if (result.error) {
+            lastError = result.error;
+            if (shouldTryNextEndpoint(result.error)) {
+              continue;
+            }
+            return { error: result.error };
+          }
+
+          const rows = Array.isArray(result.data) ? (result.data as BackendEnrollmentTest[]) : [];
+          return {
+            data: rows.map(mapEnrollmentTest),
+          };
         }
 
-        const rows = Array.isArray(result.data) ? (result.data as BackendEnrollmentTest[]) : [];
-        return {
-          data: rows.map(mapEnrollmentTest),
-        };
+        return { error: lastError ?? makeError(500, "Assignment endpoint is unavailable.") };
       },
       providesTags: ["Assignments"],
     }),
@@ -1333,37 +1361,70 @@ export const api = createApi({
       { courseId: number; testId: number; attemptCount: number }
     >({
       queryFn: async ({ courseId, testId, attemptCount }, _api, _extraOptions, baseQuery) => {
-        const result = await baseQuery({
-          url: "/testapp/teacher/enrollment-tests/",
-          method: "POST",
-          body: {
-            course_id: courseId,
-            test_id: testId,
-            attempt_count: attemptCount,
-          },
-        });
+        const candidates = [
+          "/testapp/teacher/enrollment-tests/",
+          "/testapp/enrollment-tests/",
+          "/testapp/teacher/enrollment/",
+        ];
+        const body = {
+          course_id: courseId,
+          test_id: testId,
+          attempt_count: attemptCount,
+        };
 
-        if (result.error) {
-          return { error: result.error };
+        let lastError: FetchBaseQueryError | undefined;
+
+        for (const url of candidates) {
+          const result = await baseQuery({
+            url,
+            method: "POST",
+            body,
+          });
+
+          if (result.error) {
+            lastError = result.error;
+            if (shouldTryNextEndpoint(result.error)) {
+              continue;
+            }
+            return { error: result.error };
+          }
+
+          return { data: mapEnrollmentTest(result.data as BackendEnrollmentTest) };
         }
 
-        return { data: mapEnrollmentTest(result.data as BackendEnrollmentTest) };
+        return { error: lastError ?? makeError(500, "Unable to create assignment.") };
       },
       invalidatesTags: ["Assignments"],
     }),
 
     deleteEnrollmentTest: builder.mutation<{ success: true }, number>({
       queryFn: async (id, _api, _extraOptions, baseQuery) => {
-        const result = await baseQuery({
-          url: `/testapp/teacher/enrollment-tests/${id}/`,
-          method: "DELETE",
-        });
+        const candidates = [
+          `/testapp/teacher/enrollment-tests/${id}/`,
+          `/testapp/enrollment-tests/${id}/`,
+          `/testapp/teacher/enrollment/${id}/`,
+        ];
 
-        if (result.error) {
-          return { error: result.error };
+        let lastError: FetchBaseQueryError | undefined;
+
+        for (const url of candidates) {
+          const result = await baseQuery({
+            url,
+            method: "DELETE",
+          });
+
+          if (result.error) {
+            lastError = result.error;
+            if (shouldTryNextEndpoint(result.error)) {
+              continue;
+            }
+            return { error: result.error };
+          }
+
+          return { data: { success: true } };
         }
 
-        return { data: { success: true } };
+        return { error: lastError ?? makeError(500, "Unable to delete assignment.") };
       },
       invalidatesTags: ["Assignments"],
     }),

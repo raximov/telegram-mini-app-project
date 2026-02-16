@@ -17,11 +17,25 @@ import { ErrorState } from "@/components/common/ErrorState";
 
 const getErrorDetail = (error: unknown): string => {
   const typed = error as {
-    data?: { detail?: string; error?: string };
+    data?: { detail?: string; error?: string } | string;
+    status?: number | string;
+    originalStatus?: number;
     error?: string;
   };
 
-  return typed?.data?.detail ?? typed?.data?.error ?? typed?.error ?? "Action failed.";
+  if (typeof typed?.data === "object" && typed.data !== null) {
+    return typed.data.detail ?? typed.data.error ?? typed?.error ?? "Action failed.";
+  }
+
+  if (typeof typed?.data === "string" && typed.data.trim().startsWith("<")) {
+    const statusHint =
+      typed?.status === "PARSING_ERROR" && typeof typed?.originalStatus === "number"
+        ? ` (HTTP ${typed.originalStatus})`
+        : "";
+    return `Backend JSON o'rniga HTML qaytardi${statusHint}. Backend route/deployni tekshiring.`;
+  }
+
+  return typed?.error ?? "Action failed.";
 };
 
 export const TeacherAssignmentsPage = () => {

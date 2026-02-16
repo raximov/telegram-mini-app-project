@@ -32,6 +32,36 @@ interface TeacherTestBuilderProps {
   onSubmit: (payload: BuilderSubmitPayload) => Promise<void> | void;
 }
 
+const formatSubmitError = (error: unknown): string => {
+  const typed = error as {
+    data?: { detail?: string; error?: string } | string;
+    status?: number | string;
+    originalStatus?: number;
+    error?: string;
+  };
+
+  if (typeof typed?.data === "object" && typed.data !== null) {
+    const detail = typed.data.detail ?? typed.data.error;
+    if (detail) {
+      return detail;
+    }
+  }
+
+  if (typeof typed?.data === "string" && typed.data.trim().startsWith("<")) {
+    const statusHint =
+      typed?.status === "PARSING_ERROR" && typeof typed?.originalStatus === "number"
+        ? ` (HTTP ${typed.originalStatus})`
+        : "";
+    return `Backend JSON o'rniga HTML qaytardi${statusHint}. API URL va backend loglarini tekshiring.`;
+  }
+
+  if (typeof typed?.error === "string" && typed.error.trim().length > 0) {
+    return typed.error;
+  }
+
+  return "Failed to save test.";
+};
+
 const randomId = (): string => Math.random().toString(36).slice(2, 10);
 
 const toQuestionDraft = (question: TeacherQuestion): QuestionDraft => ({
@@ -101,6 +131,7 @@ export const TeacherTestBuilder = ({ initialTest, submitting, onSubmit }: Teache
   const [status, setStatus] = useState<TestStatus>(initialTest?.status ?? "draft");
   const [timeLimitSec, setTimeLimitSec] = useState(initialTest?.timeLimitSec ?? 900);
   const [passingPercent, setPassingPercent] = useState(initialTest?.passingPercent ?? 60);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionDraft[]>(
     initialTest ? initialTest.questions.map(toQuestionDraft) : [createEmptyQuestion()]
   );
@@ -155,18 +186,23 @@ export const TeacherTestBuilder = ({ initialTest, submitting, onSubmit }: Teache
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    setSubmitError(null);
 
-    await onSubmit({
-      test: {
-        title,
-        description,
-        status,
-        timeLimitSec,
-        passingPercent,
-      },
-      questions,
-      deletedQuestionIds,
-    });
+    try {
+      await onSubmit({
+        test: {
+          title,
+          description,
+          status,
+          timeLimitSec,
+          passingPercent,
+        },
+        questions,
+        deletedQuestionIds,
+      });
+    } catch (error) {
+      setSubmitError(formatSubmitError(error));
+    }
   };
 
   return (
@@ -417,6 +453,7 @@ export const TeacherTestBuilder = ({ initialTest, submitting, onSubmit }: Teache
           {submitting ? "Saving..." : "Save Test"}
         </button>
       </div>
+      {submitError ? <p className="error-inline">{submitError}</p> : null}
     </form>
   );
 };

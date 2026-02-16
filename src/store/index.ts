@@ -10,18 +10,27 @@ import { savePersistedAuth, savePersistedTheme, savePersistedUser } from "@/stor
 const rtkQueryErrorMiddleware: Middleware = (storeApi) => (next) => (action) => {
   if (isRejectedWithValue(action)) {
     const payload = action.payload as {
-      data?: { detail?: string; error?: string };
+      data?: { detail?: string; error?: string } | string;
       status?: number | string;
+      originalStatus?: number;
       error?: string;
     };
+    const rawData = typeof payload?.data === "string" ? payload.data.trim() : "";
+    const backendReturnedHtml = payload?.status === "PARSING_ERROR" && rawData.startsWith("<");
+    const parseStatus =
+      payload?.status === "PARSING_ERROR" && typeof payload?.originalStatus === "number"
+        ? ` (HTTP ${payload.originalStatus})`
+        : "";
     const detail =
-      payload?.data?.detail ??
-      payload?.data?.error ??
+      (typeof payload?.data === "object" && payload.data !== null ? payload.data.detail : undefined) ??
+      (typeof payload?.data === "object" && payload.data !== null ? payload.data.error : undefined) ??
       payload?.error ??
       (payload?.status === "FETCH_ERROR"
         ? "Network error: API endpoint is unreachable."
         : payload?.status === "PARSING_ERROR"
-          ? "Response parsing failed from API."
+          ? backendReturnedHtml
+            ? `API returned HTML instead of JSON${parseStatus}. Backend exception yoki noto'g'ri API URL bor.`
+            : `Response parsing failed from API${parseStatus}.`
           : "Request failed.");
 
     if (payload?.status === 401) {
